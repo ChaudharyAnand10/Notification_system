@@ -1,82 +1,96 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:new_app_window/firebase_options.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+// Global notification object
+final FlutterLocalNotificationsPlugin localNotifications =
     FlutterLocalNotificationsPlugin();
-
-Future<void> initNotifications() async {
-  // Windows ke liye initialization settings
-  const windowsInit = WindowsInitializationSettings(
-  appName: 'Windows Notification Demo',
-  appUserModelId: 'com.example.new_app_window',
-  guid: '12345678-1234-1234-1234-123456789abc',
-);
-
-  // Overall initialization (sirf Windows)
-  const initSettings = InitializationSettings(
-    windows: windowsInit,
-  );
-
-  // Plugin initialize karo
-  await flutterLocalNotificationsPlugin.initialize(
-    initSettings,
-    onDidReceiveNotificationResponse: (response) {
-      debugPrint('Notification clicked: ${response.payload}');
-    },
-  );
-}
-
-Future<void> showNotification() async {
-  // Notification ka design aur style
-  const notificationDetails = NotificationDetails(
-    windows: WindowsNotificationDetails(),
-  );
-
-  // Notification show karo
-  await flutterLocalNotificationsPlugin.show(
-    0, // unique id
-    'Hello from Flutter 🚀', // title
-    'This is a Windows-style notification', // message body
-    notificationDetails,
-    payload: 'sample_payload', // optional data
-  );
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform
+
+  // Timezone initialize
+  tz.initializeTimeZones();
+
+  // Windows initialization settings
+  const initSettings = InitializationSettings(
+    windows: WindowsInitializationSettings(
+       appName: 'Windows Notification Demo',
+    appUserModelId: 'com.example.new_app_window',
+    guid: '12345678-1234-1234-1234-123456789abc',
+      
+    ),
   );
-  await initNotifications(); // app start me notification system initialize
-  runApp(const MyApp());
+
+  // Initialize notifications
+  await localNotifications.initialize(initSettings);
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Windows Notification Demo',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const NotificationPage(),
+      home: HomePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class NotificationPage extends StatelessWidget {
-  const NotificationPage({super.key});
+class HomePage extends StatelessWidget {
+  // Simple notification
+  Future<void> showSimpleNotification() async {
+    const notifDetails = NotificationDetails(
+      windows: WindowsNotificationDetails(),
+    );
+
+    await localNotifications.show(
+      1,
+      "New Message",
+      "This is a Windows notification!",
+      notifDetails,
+    );
+  }
+
+  // Scheduled notification
+  Future<void> showScheduledNotification() async {
+    const notifDetails = NotificationDetails(
+      windows: WindowsNotificationDetails(),
+    );
+
+    await localNotifications.zonedSchedule(
+  2,
+  "Scheduled Alert",
+  "This notification came after 5 seconds",
+  tz.TZDateTime.now(tz.local).add(Duration(seconds: 5)),
+  notifDetails,
+
+  // REQUIRED parameter (new in v17+)
+  androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+
+);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Windows Notification Demo')),
+      appBar: AppBar(title: Text("Windows Notification App")),
       body: Center(
-        child: ElevatedButton(
-          onPressed: showNotification, // button click par notification show
-          child: const Text('Show Notification'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: showSimpleNotification,
+              child: Text("Show Notification"),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: showScheduledNotification,
+              child: Text("Show Notification After 5 Seconds"),
+            ),
+          ],
         ),
       ),
     );
