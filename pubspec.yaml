@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^6.1.0
   firebase_messaging: ^16.0.4
   timezone: ^0.10.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

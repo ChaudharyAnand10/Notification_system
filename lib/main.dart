@@ -1,20 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:new_app_window/listPage.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-// Global notification object
+
 final FlutterLocalNotificationsPlugin localNotifications =
     FlutterLocalNotificationsPlugin();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Timezone initialize
   tz.initializeTimeZones();
 
-  // Windows initialization settings
   const initSettings = InitializationSettings(
     windows: WindowsInitializationSettings(
       appName: 'Windows Notification Demo',
@@ -23,7 +25,6 @@ void main() async {
     ),
   );
 
-  // Initialize notifications
   await localNotifications.initialize(initSettings);
 
   runApp(MyApp());
@@ -41,10 +42,17 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   final List<String> myList = [];
+  
+
   final int id = DateTime.now().millisecondsSinceEpoch;
-  // Simple notification
+
   Future<void> showSimpleNotification(TextEditingController data) async {
     const notifDetails = NotificationDetails(
       windows: WindowsNotificationDetails(),
@@ -64,7 +72,6 @@ class HomePage extends StatelessWidget {
     }
   }
 
-  // Scheduled notification
   Future<void> showScheduledNotification() async {
     const notifDetails = NotificationDetails(
       windows: WindowsNotificationDetails(),
@@ -80,6 +87,43 @@ class HomePage extends StatelessWidget {
       // REQUIRED parameter (new in v17+)
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+  }
+
+  Future<void> checkForServerNotifications() async {
+    final url = Uri.parse("http://172.16.223.122:3000/notifications");
+
+    final response = await http.get(url);
+    print(response.statusCode);
+    print("RESPONSE: ${response.body}");
+
+    if (response.statusCode == 200) {
+      List result = jsonDecode(response.body);
+          
+
+           if (result.isEmpty) {
+              print("No new notifications from server");
+            return;
+           }
+
+      for (var item in result) {
+        await localNotifications.show(
+          DateTime.now().millisecondsSinceEpoch,
+          item["title"], 
+          item["body"], 
+          const NotificationDetails(windows: WindowsNotificationDetails()),
+        );
+
+        myList.add(item["title"]);
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Timer.periodic(Duration(seconds: 5), (timer) {
+      checkForServerNotifications();
+    });
   }
 
   @override
@@ -105,7 +149,8 @@ class HomePage extends StatelessWidget {
             ),
 
             ElevatedButton(
-              onPressed: () => showSimpleNotification(data),
+              // onPressed: () => showSimpleNotification(data),
+              onPressed: () => checkForServerNotifications(),
               child: Text("Show Notification"),
             ),
             SizedBox(height: 20),
